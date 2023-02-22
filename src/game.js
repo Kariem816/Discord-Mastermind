@@ -44,9 +44,16 @@ export function parseGame(game) {
 
 function parseGuesses(guesses) {
   let returnVal = ""
+
   guesses.forEach((guess) => {
     const [correctInPlace, correctMisPlaced, rest] = guess.result
-    returnVal += `\tGuess: \`${guess.word}\` => ${Array(correctInPlace).fill(":green_circle:").join(" ")} ${Array(correctMisPlaced).fill(":yellow_circle:").join(" ")} ${Array(rest).fill(":white_circle:").join(" ")}\n\n`
+    const correctArray = Array(correctInPlace).fill(":green_circle:")
+    const correctMisPlacedArray = Array(correctMisPlaced).fill(":yellow_circle:")
+    const restArray = Array(rest).fill(":white_circle:")
+    const resultArr = [...correctArray, ...correctMisPlacedArray, ...restArray]
+
+    returnVal += `\tGuess: \`${guess.word}\` => ${resultArr.join(" ")}\n\n`
   })
+
   return returnVal
 }
