@@ -1,8 +1,6 @@
 import { getRandomWord, getWordByDiff, getWordByLength, lengthToDiff } from './controllers/words.controller.js';
-import { capitalize } from './utils.js';
 
 export function getWord(options = {}) {
-  console.log(options)
   const diff = options.difficulity || null;
   const length = options.length || null;
 

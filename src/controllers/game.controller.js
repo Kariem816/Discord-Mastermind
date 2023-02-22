@@ -1,37 +1,50 @@
-import { v4 as uuidv4 } from 'uuid';
+import db from '../db/conn.js';
 
 class Controller {
-    constructor() {
-        this.games = {};
-    }
+    constructor() { }
 
-    newGame(userId, wordObj) {
+    async newGame(userId, wordObj) {
         const game = new Game(userId, wordObj);
-        this.games[userId] = game;
+        await db.insertOne(game);
         return game;
     }
 
-    deleteGame(userId) {
-        const { word } = this.games[userId];
-        delete this.games[userId];
+    async checkGame(userId) {
+        const gamesCount = await db.countDocuments({ userId: userId });
+        if (gamesCount === 0) return false;
+        return true
+    }
+
+    async getGame(userId) {
+        const game = await db.findOne({ userId: userId });
+        if (!game) return false;
+        return Game.shape(game);
+    }
+
+    async deleteGame(userId) {
+        const { word } = await db.findOne({ userId: userId }, { projection: { word: 1, _id: 0 } });
+        await db.deleteOne({ userId: userId });
         return word;
     }
 }
 
 class Game {
-    constructor(userId, wordObj) {
-        this.id = uuidv4();
+    constructor(userId, wordObj, options = {
+        guessesLeft: 20,
+        guesses: [],
+        won: false,
+    }) {
         this.userId = userId;
         this.word = wordObj.word;
         this.difficulity = wordObj.difficulity;
         this.wordLen = wordObj.length;
-        this.wordDashed = wordObj.word.split('').map((letter) => '\\_').join(' ');
-        this.guesses = [];
-        this.guessesLeft = 20;
-        this.won = false;
+        this.wordDashed = wordObj.wordDashed || wordObj.word.split('').map((letter) => '\\_').join(' ');
+        this.guesses = options.guesses;
+        this.guessesLeft = options.guessesLeft;
+        this.won = options.won;
     }
 
-    guess(word) {
+    async guess(word) {
         const regex = /^[a-zA-Z _]+$/;
         if (!regex.test(word)) {
             throw new Error("Word contains invalid characters");
@@ -41,13 +54,29 @@ class Game {
         for (let i = 0; i < this.wordLen - word.length; i++) {
             guessedWord += '_'
         }
-        guessedWord = guessedWord.replace(" ", "_")
+        guessedWord = guessedWord.replaceAll(" ", "_")
         const guess = checkGuess(this.word, guessedWord)
         this.guesses.push(guess)
         this.guessesLeft--
 
         if (guess.result[0] === this.wordLen) this.won = true;
+        await db.updateOne({ userId: this.userId }, { $set: this });
         return guess.result;
+    }
+
+    static shape(game) {
+        const { _id, ...rest } = game;
+        const wordObj = {
+            word: rest.word,
+            difficulity: rest.difficulity,
+            length: rest.wordLen,
+            wordDashed: rest.wordDashed,
+        }
+        return new Game(rest.userId, wordObj, {
+            guessesLeft: rest.guessesLeft,
+            guesses: rest.guesses,
+            won: rest.won,
+        });
     }
 }
 

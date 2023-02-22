@@ -11,13 +11,14 @@ import { VerifyDiscordRequest, getRandomEmoji, DiscordRequest } from './src/util
 import { getWord, parseGame } from './src/game.js';
 import GameController from './src/controllers/game.controller.js';
 import {
-    PLAY_COMMAND,
-    GUESS_COMMAND,
-    LEAVE_COMMAND,
-    HOWTO_COMMAND,
-    INFO_COMMAND,
+    COMMANDS,
     HasGuildCommands
 } from './src/commands.js';
+
+String.prototype.replaceAll = function (search, replacement) {
+    var target = this;
+    return target.replace(new RegExp(search, 'g'), replacement);
+};
 
 // Create an express app
 const app = express();
@@ -46,7 +47,7 @@ app.post('/interactions', async (req, res) => {
 
             // "mastermind" guild command
             if (name === 'mastermind') {
-                if (gameController.games[userId]) {
+                if (await gameController.checkGame(userId)) {
                     throw new Error('You already have an active game');
                 }
 
@@ -59,8 +60,8 @@ app.post('/interactions', async (req, res) => {
 
                 const word = getWord(options);
 
-                const game = gameController.newGame(userId, word);
-                console.log(gameController.games)
+                const game = await gameController.newGame(userId, word);
+
                 // Send a message into the channel where command was triggered from
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -88,6 +89,7 @@ app.post('/interactions', async (req, res) => {
                     }
                 });
             }
+
             // "guess" guild command
             if (name === 'guess' && id) {
                 const params = data.options || [];
@@ -97,13 +99,13 @@ app.post('/interactions', async (req, res) => {
                     options[param.name] = param.value;
                 });
 
-                const game = gameController.games[userId] || null;
+                const game = await gameController.getGame(userId);
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
 
                 const word = options.word;
-                game.guess(word);
+                await game.guess(word);
 
                 res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -136,14 +138,48 @@ app.post('/interactions', async (req, res) => {
                 }
             }
 
-            // "leave" guild command
-            if (name === 'leave' && id) {
-                const game = gameController.games[userId] || null;
+            // "game-status" guild command
+            if (name === 'status' && id) {
+                const game = await gameController.getGame(userId);
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
 
-                const answer = gameController.deleteGame(userId);
+                res.send({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: {
+                        content: parseGame(game),
+                        components: [
+                            {
+                                type: MessageComponentTypes.ACTION_ROW,
+                                components: [
+                                    {
+                                        type: MessageComponentTypes.BUTTON,
+                                        style: ButtonStyleTypes.PRIMARY,
+                                        label: 'Guess',
+                                        custom_id: 'start_guess',
+                                    },
+                                    {
+                                        type: MessageComponentTypes.BUTTON,
+                                        style: ButtonStyleTypes.DANGER,
+                                        label: 'Leave',
+                                        custom_id: 'leave_game',
+                                    },
+                                ],
+                            }
+                        ],
+                    },
+                });
+            }
+
+            // "leave" guild command
+            if (name === 'leave' && id) {
+                const game = gameController.checkGame(userId);
+                if (!game) {
+                    throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
+                }
+
+                const answer = await gameController.deleteGame(userId);
 
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -182,10 +218,27 @@ app.post('/interactions', async (req, res) => {
                     - 🟡 means that the letter is in the word but in the wrong position.\n
                     - ⚪ means that the letter is not in the word.\n\n
 
+                    - \`/game-status\`\n
+
+                    You can use the \`/game-status\` command to check the current game status.\n\n
+                    For example if you lost your original message.\n\n
+
                     - \`/leave\`\n
 
                     You can also use the \`/leave\` command to end the game.\n
-                    `,
+
+                    - \`/howtoplay\`\n
+
+                    You can use the \`/howtoplay\` command to get the instructions again.\n\n
+
+                    - \`/info\`\n
+
+                    You can use the \`/info\` command to get the game info.\n\n
+
+                    - \`/help\`\n
+
+                    You can use the \`/help\` command to get the list of commands.\n\n
+                    `
                     },
                 });
             }
@@ -200,6 +253,26 @@ app.post('/interactions', async (req, res) => {
                     },
                 });
             }
+
+            // "help" guild command
+            if (name === 'help' && id) {
+                return res.send({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    flags: InteractionResponseFlags.EPHEMERAL,
+                    data: {
+                        content: `
+                    **Commands**\n\n
+                    - \`/mastermind\`\n
+                    - \`/guess\`\n
+                    - \`/game-status\`\n
+                    - \`/leave\`\n
+                    - \`/howtoplay\`\n
+                    - \`/info\`\n
+                    - \`/help\`\n
+                    `,
+                    },
+                });
+            }
         }
 
         if (type === InteractionType.MESSAGE_COMPONENT) {
@@ -207,7 +280,7 @@ app.post('/interactions', async (req, res) => {
             const componentId = data.custom_id;
 
             if (componentId === 'start_guess') {
-                const game = gameController.games[userId] || null;
+                const game = await gameController.getGame(userId);
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
@@ -238,12 +311,12 @@ app.post('/interactions', async (req, res) => {
                     },
                 })
             } else if (componentId === 'leave_game') {
-                const game = gameController.games[userId] || null;
+                const game = await gameController.checkGame(userId);
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
 
-                const answer = gameController.deleteGame(userId);
+                const answer = await gameController.deleteGame(userId);
 
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -255,7 +328,7 @@ app.post('/interactions', async (req, res) => {
         }
 
         if (type === InteractionType.MODAL_SUBMIT) {
-            const game = gameController.games[userId] || null;
+            const game = await gameController.getGame(userId);
             if (!game) {
                 throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
             }
@@ -269,7 +342,7 @@ app.post('/interactions', async (req, res) => {
             const guess = data.components[0].components[0].value;
             const endpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${messageId}`;
 
-            game.guess(guess);
+            await game.guess(guess);
             const parsedGame = parseGame(game);
 
             res.send({
@@ -299,6 +372,9 @@ app.post('/interactions', async (req, res) => {
             });
             // Delete previous message
             await DiscordRequest(endpoint, { method: 'DELETE' });
+            if (game.isWon) {
+                gameController.deleteGame(userId);
+            }
         }
     } catch (err) {
         console.error(err)
@@ -316,11 +392,5 @@ app.listen(PORT, () => {
     console.log('Listening on port', PORT);
 
     // Check if guild commands from commands.js are installed (if not, install them)
-    HasGuildCommands(process.env.APP_ID, [
-        PLAY_COMMAND,
-        GUESS_COMMAND,
-        LEAVE_COMMAND,
-        INFO_COMMAND,
-        HOWTO_COMMAND
-    ]);
+    HasGuildCommands(process.env.APP_ID, COMMANDS, { patch: false });
 });
