@@ -36,16 +36,16 @@ app.post('/interactions', async (req, res) => {
     const { type, id, data } = req.body;
     const userId = req.body?.member?.user?.id ?? null;
 
-    if (type === InteractionType.PING) {
-        return res.send({ type: InteractionResponseType.PONG });
-    }
+    try {
+        if (type === InteractionType.PING) {
+            return res.send({ type: InteractionResponseType.PONG });
+        }
 
-    if (type === InteractionType.APPLICATION_COMMAND) {
-        const { name } = data;
+        if (type === InteractionType.APPLICATION_COMMAND) {
+            const { name } = data;
 
-        // "mastermind" guild command
-        if (name === 'mastermind') {
-            try {
+            // "mastermind" guild command
+            if (name === 'mastermind') {
                 if (gameController.games[userId]) {
                     throw new Error('You already have an active game');
                 }
@@ -86,19 +86,9 @@ app.post('/interactions', async (req, res) => {
                         ],
                     }
                 });
-            } catch (err) {
-                console.error(err);
-                return res.send({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: {
-                        content: 'Error: ' + err.message,
-                    },
-                });
             }
-        }
-        // "guess" guild command
-        if (name === 'guess' && id) {
-            try {
+            // "guess" guild command
+            if (name === 'guess' && id) {
                 const params = data.options || [];
                 const options = {};
 
@@ -148,20 +138,10 @@ app.post('/interactions', async (req, res) => {
                 if (game.isWon) {
                     gameController.deleteGame(userId);
                 }
-            } catch (err) {
-                console.error(err);
-                return res.send({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: {
-                        content: 'Error: ' + err.message,
-                    },
-                });
             }
-        }
 
-        // "leave" guild command
-        if (name === 'leave' && id) {
-            try {
+            // "leave" guild command
+            if (name === 'leave' && id) {
                 const game = gameController.games[userId] || null;
                 if (!game) {
                     return res.send({
@@ -180,23 +160,14 @@ app.post('/interactions', async (req, res) => {
                         content: 'Game successfully ended\n\nThe word was: ' + answer,
                     },
                 });
-            } catch (err) {
-                console.error(err);
+            }
+
+            // "howto" guild command
+            if (name === 'howtoplay' && id) {
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                     data: {
-                        content: 'Error: ' + err.message,
-                    },
-                });
-            }
-        }
-
-        // "howto" guild command
-        if (name === 'howtoplay' && id) {
-            return res.send({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: {
-                    content: `
+                        content: `
                     **How to play Mastermind**\n\n
                     The goal of the game is to guess the word in as few tries as possible.\n
 
@@ -223,27 +194,26 @@ app.post('/interactions', async (req, res) => {
 
                     You can also use the \`/leave\` command to end the game.\n
                     `,
-                },
-            });
+                    },
+                });
+            }
+
+            // "info" guild command
+            if (name === 'info' && id) {
+                return res.send({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: {
+                        content: "A game by @Bumble#4172\n\nCheck also the website version: https://mastermind-bumble.netlify.app",
+                    },
+                });
+            }
         }
 
-        // "info" guild command
-        if (name === 'info' && id) {
-            return res.send({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: {
-                    content: "A game by @Bumble#4172\n\nCheck also the website version: https://mastermind-bumble.netlify.app",
-                },
-            });
-        }
-    }
+        if (type === InteractionType.MESSAGE_COMPONENT) {
+            // custom_id set in payload when sending message component
+            const componentId = data.custom_id;
 
-    if (type === InteractionType.MESSAGE_COMPONENT) {
-        // custom_id set in payload when sending message component
-        const componentId = data.custom_id;
-
-        if (componentId === 'start_guess') {
-            try {
+            if (componentId === 'start_guess') {
                 const game = gameController.games[userId] || null;
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
@@ -274,17 +244,7 @@ app.post('/interactions', async (req, res) => {
                         ],
                     },
                 })
-            } catch (err) {
-                console.error(err);
-                return res.send({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: {
-                        content: 'Error: ' + err.message,
-                    },
-                });
-            }
-        } else if (componentId === 'leave_game') {
-            try {
+            } else if (componentId === 'leave_game') {
                 const game = gameController.games[userId] || null;
                 if (!game) {
                     throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
@@ -298,19 +258,10 @@ app.post('/interactions', async (req, res) => {
                         content: 'Game successfully ended\n\nThe word was: ' + answer,
                     },
                 });
-
-            } catch (err) {
-                console.error(err);
-                return res.send({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: {
-                        content: 'Error: ' + err.message,
-                    },
-                });
             }
         }
-    } else if (type === InteractionType.MODAL_SUBMIT) {
-        try {
+
+        if (type === InteractionType.MODAL_SUBMIT) {
             const game = gameController.games[userId] || null;
             if (!game) {
                 throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
@@ -355,15 +306,16 @@ app.post('/interactions', async (req, res) => {
             });
             // Delete previous message
             await DiscordRequest(endpoint, { method: 'DELETE' });
-        } catch (err) {
-            console.error(err);
-            return res.send({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: {
-                    content: 'Error: ' + err.message,
-                },
-            });
         }
+    } catch (err) {
+        console.error(err)
+        return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            flags: InteractionResponseFlags.EPHEMERAL,
+            data: {
+                content: 'Error: ' + err.message,
+            },
+        });
     }
 });
 
