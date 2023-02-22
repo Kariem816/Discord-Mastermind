@@ -16,8 +16,7 @@ import {
     LEAVE_COMMAND,
     HOWTO_COMMAND,
     INFO_COMMAND,
-    HasGuildCommands,
-    DeleteAllCommands,
+    HasGuildCommands
 } from './src/commands.js';
 
 // Create an express app
@@ -35,7 +34,7 @@ const gameController = new GameController();
 app.post('/interactions', async (req, res) => {
     // Interaction type and data
     const { type, id, data } = req.body;
-    const userId = req.body.member.user.id;
+    const userId = req.body?.member?.user?.id ?? null;
 
     if (type === InteractionType.PING) {
         return res.send({ type: InteractionResponseType.PONG });
