@@ -1,6 +1,6 @@
 import { capitalize, DiscordRequest } from './utils.js';
 
-export async function HasGuildCommands(appId, commands) {
+export async function HasGuildCommands(appId, commands, options = {}) {
   if (appId === '') return;
 
   // GET guilds
@@ -8,7 +8,7 @@ export async function HasGuildCommands(appId, commands) {
   guilds.forEach(async (guild) => {
     // GET commands
     commands.forEach(async (command) => {
-      await HasGuildCommand(appId, guild['id'], command, guild['name']);
+      await HasGuildCommand(appId, guild['id'], command, guild['name'], options.patch);
     });
   });
 }
@@ -22,7 +22,7 @@ async function GetGuilds() {
 }
 
 // Checks for a command
-async function HasGuildCommand(appId, guildId, command, guildName = "") {
+async function HasGuildCommand(appId, guildId, command, guildName = "", patch) {
   // API endpoint to get and post guild commands
   const endpoint = `applications/${appId}/guilds/${guildId}/commands`;
 
@@ -36,9 +36,11 @@ async function HasGuildCommand(appId, guildId, command, guildName = "") {
       if (!installedNames.includes(command['name'])) {
         console.log(`Installing "${command['name']}" command in ${guildName}`);
         InstallGuildCommand(appId, guildId, command);
-      } else {
+      } else if (patch) {
         const commandId = data.find((c) => c['name'] === command['name'])['id'];
         PatchGuildCommand(appId, guildId, command, commandId);
+        console.log(`"${command['name']}" command is being patched in ${guildName}`);
+      } else {
         console.log(`"${command['name']}" command already installed in ${guildName}`);
       }
     }
@@ -95,8 +97,8 @@ export async function DeleteAllCommands(appId, guildId) {
   }
 }
 
-// Simple test command
-export const PLAY_COMMAND = {
+// Command handlers
+const PLAY_COMMAND = {
   name: 'mastermind',
   description: 'Play a game of mastermind',
   options: [
@@ -138,7 +140,7 @@ export const PLAY_COMMAND = {
   type: 1,
 };
 
-export const GUESS_COMMAND = {
+const GUESS_COMMAND = {
   name: 'guess',
   description: 'Guess the word',
   options: [
@@ -152,20 +154,42 @@ export const GUESS_COMMAND = {
   type: 1,
 };
 
-export const LEAVE_COMMAND = {
+const STATUS_COMMAND = {
+  name: 'status',
+  description: 'Get the status of the game',
+  type: 1,
+};
+
+const LEAVE_COMMAND = {
   name: 'leave',
   description: 'Leave the game',
   type: 1,
 };
 
-export const HOWTO_COMMAND = {
+const HOWTO_COMMAND = {
   name: 'howtoplay',
   description: 'Get info about how to play mastermind',
   type: 1,
 };
 
-export const INFO_COMMAND = {
+const INFO_COMMAND = {
   name: 'info',
   description: 'Get info about the bot',
   type: 1,
 };
+
+const HELP_COMMAND = {
+  name: 'help',
+  description: 'Get list of commands',
+  type: 1,
+};
+
+export const COMMANDS = [
+  PLAY_COMMAND,
+  GUESS_COMMAND,
+  STATUS_COMMAND,
+  LEAVE_COMMAND,
+  HOWTO_COMMAND,
+  INFO_COMMAND,
+  HELP_COMMAND,
+];
