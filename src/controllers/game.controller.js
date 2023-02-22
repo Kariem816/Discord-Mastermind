@@ -1,8 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
+import { readFileSync, writeFileSync } from 'fs';
 
 class Controller {
     constructor() {
-        this.games = {};
+        const gamesFile = readFileSync('./src/data/games.json', 'utf8');
+        this.games = JSON.parse(gamesFile) || {};
+        setInterval(() => {
+            this.saveGames();
+        }, 1000);
     }
 
     newGame(userId, wordObj) {
@@ -15,6 +20,10 @@ class Controller {
         const { word } = this.games[userId];
         delete this.games[userId];
         return word;
+    }
+
+    saveGames() {
+        writeFileSync('./src/data/games.json', JSON.stringify(this.games));
     }
 }
 
