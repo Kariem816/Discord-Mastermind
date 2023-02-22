@@ -35,8 +35,10 @@ async function HasGuildCommand(appId, guildId, command, guildName = "") {
       // This is just matching on the name, so it's not good for updates
       if (!installedNames.includes(command['name'])) {
         console.log(`Installing "${command['name']}" command in ${guildName}`);
-        InstallGuildCommand(appId, guildId, command,);
+        InstallGuildCommand(appId, guildId, command);
       } else {
+        const commandId = data.find((c) => c['name'] === command['name'])['id'];
+        PatchGuildCommand(appId, guildId, command, commandId);
         console.log(`"${command['name']}" command already installed in ${guildName}`);
       }
     }
@@ -56,6 +58,20 @@ export async function InstallGuildCommand(appId, guildId, command) {
     console.error(err);
   }
 }
+
+// Patches a command
+export async function PatchGuildCommand(appId, guildId, command, commandId) {
+  // API endpoint to patch guild command
+  const endpoint = `applications/${appId}/guilds/${guildId}/commands/${commandId}`;
+
+  // install command
+  try {
+    await DiscordRequest(endpoint, { method: 'PATCH', body: command });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 
 // Installs a command
 export async function DeleteAllCommands(appId, guildId) {
