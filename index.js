@@ -60,6 +60,7 @@ app.post('/interactions', async (req, res) => {
                 const word = getWord(options);
 
                 const game = gameController.newGame(userId, word);
+                console.log(gameController.games)
                 // Send a message into the channel where command was triggered from
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -98,12 +99,7 @@ app.post('/interactions', async (req, res) => {
 
                 const game = gameController.games[userId] || null;
                 if (!game) {
-                    return res.send({
-                        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                        data: {
-                            content: 'You currently have no active games\n\nUse `/mastermind` to start a new game',
-                        },
-                    });
+                    throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
 
                 const word = options.word;
@@ -113,7 +109,7 @@ app.post('/interactions', async (req, res) => {
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                     data: {
                         content: parseGame(game),
-                        components: [
+                        components: !game.won ? [
                             {
                                 type: MessageComponentTypes.ACTION_ROW,
                                 components: [
@@ -131,7 +127,7 @@ app.post('/interactions', async (req, res) => {
                                     },
                                 ],
                             }
-                        ],
+                        ] : [],
                     },
                 });
 
@@ -144,12 +140,7 @@ app.post('/interactions', async (req, res) => {
             if (name === 'leave' && id) {
                 const game = gameController.games[userId] || null;
                 if (!game) {
-                    return res.send({
-                        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                        data: {
-                            content: 'You currently have no active games\n\nUse `/mastermind` to start a new game',
-                        },
-                    });
+                    throw new Error('You currently have no active games\n\nUse `/mastermind` to start a new game');
                 }
 
                 const answer = gameController.deleteGame(userId);
@@ -166,6 +157,7 @@ app.post('/interactions', async (req, res) => {
             if (name === 'howtoplay' && id) {
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    flags: InteractionResponseFlags.EPHEMERAL,
                     data: {
                         content: `
                     **How to play Mastermind**\n\n
@@ -202,6 +194,7 @@ app.post('/interactions', async (req, res) => {
             if (name === 'info' && id) {
                 return res.send({
                     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    flags: InteractionResponseFlags.EPHEMERAL,
                     data: {
                         content: "A game by @Bumble#4172\n\nCheck also the website version: https://mastermind-bumble.netlify.app",
                     },
@@ -283,25 +276,25 @@ app.post('/interactions', async (req, res) => {
                 type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                 data: {
                     content: parsedGame,
-                    components: [
+                    components: !game.won ? [
                         {
                             type: MessageComponentTypes.ACTION_ROW,
                             components: [
                                 {
                                     type: MessageComponentTypes.BUTTON,
-                                    custom_id: 'start_guess',
+                                    style: ButtonStyleTypes.PRIMARY,
                                     label: 'Guess',
-                                    style: 1,
+                                    custom_id: 'start_guess',
                                 },
                                 {
                                     type: MessageComponentTypes.BUTTON,
-                                    custom_id: 'leave_game',
+                                    style: ButtonStyleTypes.DANGER,
                                     label: 'Leave',
-                                    style: 4,
-                                }
-                            ]
+                                    custom_id: 'leave_game',
+                                },
+                            ],
                         }
-                    ]
+                    ] : [],
                 },
             });
             // Delete previous message
@@ -309,7 +302,7 @@ app.post('/interactions', async (req, res) => {
         }
     } catch (err) {
         console.error(err)
-        return res.send({
+        res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             flags: InteractionResponseFlags.EPHEMERAL,
             data: {

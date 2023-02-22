@@ -17,7 +17,8 @@ export async function HasGuildCommands(appId, commands) {
 async function GetGuilds() {
   // API endpoint to get guilds
   const endpoint = 'users/@me/guilds';
-  return await DiscordRequest(endpoint, { method: 'GET' });
+  const res = await DiscordRequest(endpoint, { method: 'GET' });
+  return await res.json();
 }
 
 // Checks for a command

@@ -32,10 +32,14 @@ export function parseGame(game) {
   if (game.guessesLeft === 20) {
     returnVal += ""
   } else if (game.guessesLeft === 0) {
-    returnVal += `\nPrevious Guesses: ${parseGuesses(game.guesses)}\n\nYou ${game.won ? "won" : "lost"}! The word was ${game.word}`
+    returnVal += `\nPrevious Guesses:\n${parseGuesses(game.guesses)}\n\nYou ${game.won ? "won" : "lost"}! The word was ${game.word.toUpperCase()}`
+  } else if (game.won) {
+    returnVal += `\nPrevious Guesses:\n${parseGuesses(game.guesses)}\n\nYou Won! :confetti_ball: :tada:\n\nThe word was ${game.word.toUpperCase()}`
   } else {
     returnVal += `\nPrevious Guesses:\n${parseGuesses(game.guesses)}`
   }
+
+  if (game.guessesLeft === 0 || game.won) return returnVal
 
   returnVal += `\n\nGuess by typing \`/guess <word>\` or by clicking the buttons below`
 
