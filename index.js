@@ -133,8 +133,8 @@ app.post('/interactions', async (req, res) => {
                     },
                 });
 
-                if (game.isWon) {
-                    gameController.deleteGame(userId);
+                if (game.won) {
+                    await gameController.deleteGame(userId);
                 }
             }
 
@@ -372,8 +372,8 @@ app.post('/interactions', async (req, res) => {
             });
             // Delete previous message
             await DiscordRequest(endpoint, { method: 'DELETE' });
-            if (game.isWon) {
-                gameController.deleteGame(userId);
+            if (game.won) {
+                await gameController.deleteGame(userId);
             }
         }
     } catch (err) {
