@@ -8,7 +8,7 @@ The bot is based on [Mastermind Server](https://github.com/Kariem816/Mastermind-
 
 ## Add the bot to your server
 
-Click [here](https://discord.com/api/oauth2/authorize?client_id=1077337938301566976&permissions=2147485696&scope=bot) to add the bot to your server.
+Click [here](https://discord.com/oauth2/authorize?client_id=1077337938301566976) to add the bot to your server.
 
 ## Commands
 
